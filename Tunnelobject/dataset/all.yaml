@@ -1,0 +1,8 @@
+# Split paths are relative to this YAML file, independent of the working directory.
+train: ../data/xinall/ImageSet/train/images
+val: ../data/xinall/ImageSet/val/images
+
+names:
+  0: spalling
+  1: crack
+  2: leakage

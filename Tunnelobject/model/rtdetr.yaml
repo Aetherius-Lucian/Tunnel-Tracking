@@ -1,0 +1,40 @@
+nc: 3 # number of classes
+scales: # model compound scaling constants, i.e. 'model=rtdetr-resnet50.yaml' will call rtdetr-resnet50.yaml with scale 'l'
+  # [depth, width, max_channels]
+  l: [1.00, 1.00, 1024]
+
+backbone:
+  # [from, repeats, module, args]
+  # MSFWStage args: [c2, stride, num_blocks, reduction]
+  - [-1, 1, MSFWStage, [16, 2, 1, 4]] # 0-P1/2
+  - [-1, 1, MSFWStage, [32, 2, 1, 4]] # 1-P2/4
+  - [-1, 1, MSFWStage, [64, 2, 1, 4]] # 2-P3/8
+  - [-1, 1, MSFWStage, [128, 2, 1, 4]] # 3-P4/16
+  - [-1, 1, MSFWStage, [256, 2, 1, 4]] # 4-P5/32
+  - [-1, 1, SPPF, [256, 5]] # 5-P5/32
+
+head:
+  - [-1, 1, Conv, [256, 1, 1, None, 1, 1, False]] # 6
+  - [-1, 1, AIFI, [1024, 8]]
+  - [-1, 1, Conv, [256, 1, 1]] # 8
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [3, 1, Conv, [128, 1, 1, None, 1, 1, False]] # 10
+  - [[-2, -1], 1, Concat, [1]]
+  - [-1, 3, RepC3, [128]] # 12
+  - [-1, 1, Conv, [128, 1, 1]] # 13
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [2, 1, Conv, [64, 1, 1, None, 1, 1, False]] # 15
+  - [[-2, -1], 1, Concat, [1]] # cat backbone P4
+  - [-1, 3, RepC3, [64]] # X3 (17), fpn_blocks.1
+
+  - [-1, 1, Conv, [128, 3, 2]] # 18, downsample_convs.0
+  - [[-1, 13], 1, Concat, [1]] # cat Y4
+  - [-1, 3, RepC3, [128]] # F4 (20), pan_blocks.0
+
+  - [-1, 1, Conv, [256, 3, 2]] # 21, downsample_convs.1
+  - [[-1, 8], 1, Concat, [1]] # cat Y5
+  - [-1, 3, RepC3, [256]] # F5 (23), pan_blocks.1
+
+  - [[17, 20, 23], 1, RTDETRDecoder, [nc]] # Detect(P3, P4, P5)
